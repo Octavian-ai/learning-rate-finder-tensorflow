@@ -12,6 +12,8 @@ Project: https://github.com/aymericdamien/TensorFlow-Examples/
 """
 from __future__ import division, print_function, absolute_import
 
+from utils import minimize_clipped
+
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=False)
@@ -20,7 +22,7 @@ import tensorflow as tf
 
 # Training Parameters
 max_gradient_norm = 8
-learning_rate = 0.001
+learning_rate_old = 0.001
 num_steps = 2000
 batch_size = 128
 
@@ -87,10 +89,8 @@ def model_fn(features, labels, mode):
     # --------------------------------------------------------------------------
     # Calculating loss 
     # --------------------------------------------------------------------------
-    loss_op = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
         logits=logits_train, labels=tf.cast(labels, dtype=tf.int32)))
-    train_op = optimizer.minimize(loss_op,
-                                  global_step=tf.train.get_global_step())
 
     # --------------------------------------------------------------------------
     # Optimize
@@ -98,7 +98,7 @@ def model_fn(features, labels, mode):
     if mode == tf.estimator.ModeKeys.TRAIN:
         global_step = tf.train.get_global_step()
         learning_rate = tf.train.exponential_decay(
-                learning_rate,
+                learning_rate_old,
                 global_step,
                 decay_steps=10000,
                 decay_rate=0.95)
@@ -107,19 +107,14 @@ def model_fn(features, labels, mode):
         optimizer = tf.train.AdamOptimizer(learning_rate)
 
         train_op, gradients = minimize_clipped(optimizer, loss, max_gradient_norm, var_all)
+        var = tf.trainable_variables()
 
-        # Logging
-        if args["use_summary_scalar"]:
-            var = tf.trainable_variables()
-
-            gradients = tf.gradients(loss, var)
-            norms = [tf.norm(i, 2) for i in gradients if i is not None]
-            tf.summary.scalar("learning_rate", learning_rate, family="hyperparam")
-            tf.summary.scalar("current_step", global_step, family="hyperparam")
-            tf.summary.histogram("grad_norm", norms)
-            tf.summary.scalar("grad_norm", tf.reduce_max(norms), family="hyperparam")
-    
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        gradients = tf.gradients(loss, var)
+        norms = [tf.norm(i, 2) for i in gradients if i is not None]
+        tf.summary.scalar("learning_rate", learning_rate, family="hyperparam")
+        tf.summary.scalar("current_step", global_step, family="hyperparam")
+        tf.summary.histogram("grad_norm", norms)
+        tf.summary.scalar("grad_norm", tf.reduce_max(norms), family="hyperparam")
 
     # Evaluate the accuracy of the model
     acc_op = tf.metrics.accuracy(labels=labels, predictions=pred_classes)
@@ -129,7 +124,7 @@ def model_fn(features, labels, mode):
     estim_specs = tf.estimator.EstimatorSpec(
         mode=mode,
         predictions=pred_classes,
-        loss=loss_op,
+        loss=loss,
         train_op=train_op,
         eval_metric_ops={'accuracy': acc_op})
 
