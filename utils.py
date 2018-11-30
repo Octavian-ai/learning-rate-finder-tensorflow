@@ -10,3 +10,14 @@ def minimize_clipped(optimizer, value, max_gradient_norm, var=None):
     grad_dict = dict(zip(var, clipped_gradients))
     op = optimizer.apply_gradients(zip(clipped_gradients, var), global_step=global_step)
     return op, grad_dict
+
+
+def natural_exp_growth(learning_rate,
+                      global_step,
+                      decay_steps,
+                      decay_rate,
+                      staircase=False):
+    exponent = global_step / decay_steps
+    if staircase:
+        exponent = math.floor(exponent)
+    return learning_rate * math.exp(1 * decay_rate * exponent)
