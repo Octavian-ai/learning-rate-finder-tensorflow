@@ -12,9 +12,6 @@ Project: https://github.com/aymericdamien/TensorFlow-Examples/
 """
 from __future__ import division, print_function, absolute_import
 
-from utils import minimize_clipped
-
-
 
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
@@ -23,9 +20,8 @@ mnist = input_data.read_data_sets("/tmp/data/", one_hot=False)
 import tensorflow as tf
 
 # Training Parameters
-max_gradient_norm = 8
-learning_rate_old = 1e-10
-num_steps = 20000
+learning_rate_old = None
+num_steps = 2000
 batch_size = 128
 
 
@@ -103,15 +99,25 @@ def model_fn(features, labels, mode):
     # --------------------------------------------------------------------------
     if mode == tf.estimator.ModeKeys.TRAIN:
         global_step = tf.train.get_global_step()
-        learning_rate = tf.train.exponential_decay(
-            learning_rate_old, global_step=global_step,
-            decay_steps=100, decay_rate=1.30)
+        print("Do you want to use learning rate finder (yes/no)?")
+        ans = input()
+        if (ans == 'yes'):
+            print("Enter the learning rate: ")
+            learning_rate_old = float(input())
+            learning_rate = tf.train.exponential_decay(
+                learning_rate_old, global_step=global_step,
+                decay_steps=100, decay_rate=1.30)
             
-        optimizer = tf.train.AdamOptimizer(learning_rate)
-        train_ops = optimizer.minimize(loss, global_step=global_step)
-        tf.summary.scalar("learning_rate", learning_rate)
-        tf.summary.scalar("current_step", global_step)
-        tf.summary.scalar("loss", loss)
+            optimizer = tf.train.AdamOptimizer(learning_rate)
+            train_ops = optimizer.minimize(loss, global_step=global_step)
+            tf.summary.scalar("learning_rate", learning_rate)
+            tf.summary.scalar("current_step", global_step)
+            tf.summary.scalar("loss", loss)
+        else: 
+            print("Enter the learning rate: ")
+            learning_rate = float(input())
+            optimizer = tf.train.AdamOptimizer(learning_rate)
+            train_ops = optimizer.minimize(loss, global_step=global_step)
         
 
 
