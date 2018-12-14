@@ -19,9 +19,11 @@ mnist = input_data.read_data_sets("/tmp/data/", one_hot=False)
 
 import tensorflow as tf
 
+tf.logging.set_verbosity(tf.logging.INFO)
+
 # Training Parameters
 learning_rate_old = None
-num_steps = 2000
+num_steps = 1000
 batch_size = 128
 
 
@@ -98,16 +100,16 @@ def model_fn(features, labels, mode):
     # Optimize
     # --------------------------------------------------------------------------
     if mode == tf.estimator.ModeKeys.TRAIN:
-        global_step = tf.train.get_global_step()
-        print("Do you want to use learning rate finder (yes/no)?")
+        
+        print("Do you want to use learning rate finder (Y/N)?")
         ans = input()
-        if (ans == 'yes'):
+        if (ans == 'Y' or ans == 'y'):
             print("Enter the learning rate: ")
             learning_rate_old = float(input())
+            global_step = tf.train.get_global_step()
             learning_rate = tf.train.exponential_decay(
                 learning_rate_old, global_step=global_step,
                 decay_steps=100, decay_rate=1.30)
-            
             optimizer = tf.train.AdamOptimizer(learning_rate)
             train_ops = optimizer.minimize(loss, global_step=global_step)
             tf.summary.scalar("learning_rate", learning_rate)
@@ -116,13 +118,13 @@ def model_fn(features, labels, mode):
         else: 
             print("Enter the learning rate: ")
             learning_rate = float(input())
+            global_step = tf.train.get_global_step()
             optimizer = tf.train.AdamOptimizer(learning_rate)
             train_ops = optimizer.minimize(loss, global_step=global_step)
-        
-
-
+            
     # Evaluate the accuracy of the model
     acc_op = tf.metrics.accuracy(labels=labels, predictions=pred_classes)
+    
     
 
     # TF Estimators requires to return a EstimatorSpec, that specify
@@ -143,7 +145,10 @@ model = tf.estimator.Estimator(model_fn)
 input_fn = tf.estimator.inputs.numpy_input_fn(
     x={'images': mnist.train.images}, y=mnist.train.labels,
     batch_size=batch_size, num_epochs=None, shuffle=True)
+
 # Train the Model
+print("Enter the steps limit for model training: ")
+num_steps = int(input())
 model.train(input_fn, steps=num_steps)
 
 # Evaluate the Model
