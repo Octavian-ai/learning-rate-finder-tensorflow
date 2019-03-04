@@ -6,16 +6,10 @@ This example is using the MNIST database of handwritten digits
 
 This example is using TensorFlow layers API, see 'convolutional_network_raw' 
 example for a raw implementation with variables.
-
-Author: Aymeric Damien
-Project: https://github.com/aymericdamien/TensorFlow-Examples/
 """
 from __future__ import division, print_function, absolute_import
 
-
-# Import MNIST data
-from tensorflow.examples.tutorials.mnist import input_data
-mnist = input_data.read_data_sets("/tmp/data/", one_hot=False)
+import dataset
 
 import tensorflow as tf
 
@@ -32,13 +26,15 @@ num_input = 784 # MNIST data input (img shape: 28*28)
 num_classes = 10 # MNIST total classes (0-9 digits)
 dropout = 0.25 # Dropout, probability to drop a unit
 
+# Data directory
+data_dir = '/tmp/mnist/data'
 
 # Create the neural network
 def conv_net(x_dict, n_classes, dropout, reuse, is_training):
     # Define a scope for reusing the variables
     with tf.variable_scope('ConvNet', reuse=reuse):
         # TF Estimator input is a dict, in case of multiple inputs
-        x = x_dict['images']
+        x = x_dict
 
         # MNIST data input is a 1-D vector of 784 features (28*28 pixels)
         # Reshape to match picture format [Height x Width x Channel]
@@ -132,20 +128,25 @@ def model_fn(features, labels, mode):
 model = tf.estimator.Estimator(model_fn)
 
 # Define the input function for training
-input_fn = tf.estimator.inputs.numpy_input_fn(
-    x={'images': mnist.train.images}, y=mnist.train.labels,
-    batch_size=batch_size, num_epochs=None, shuffle=True)
+def train_data():
+    data = dataset.train(data_dir)
+    data = data.cache()
+    data = data.shuffle(1000).repeat().batch(batch_size)
+    return data
 
 # Train the Model
-model.train(input_fn, steps=training_steps)
+model.train(train_data, steps=training_steps)
 
 # Evaluate the Model
 # Define the input function for evaluating
-input_fn = tf.estimator.inputs.numpy_input_fn(
-    x={'images': mnist.test.images}, y=mnist.test.labels,
-    batch_size=batch_size, shuffle=False)
+def eval_data():
+    data = dataset.test(data_dir)
+    data = data.cache()
+    data = data.shuffle(1000).repeat().batch(batch_size)
+    return data
+
 # Use the Estimator 'evaluate' method
-e = model.evaluate(input_fn)
+e = model.evaluate(eval_data, steps=(0.1*training_steps))
 
 print("The test accuracy of the network: ", e['accuracy'])
 
